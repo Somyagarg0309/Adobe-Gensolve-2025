@@ -1,4 +1,4 @@
-# @title Challenge 1b: Persona-Driven Document Intelligence Engine (Schema Compliant)
+# @title Challenge 1b: Persona-Driven Document Intelligence Engine (Final)
 import fitz  # PyMuPDF
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
@@ -10,14 +10,13 @@ import json
 import os
 from collections import Counter
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import SentenceTransformerEmbeddings
-from langchain.vectorstores import FAISS
+from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_community.vectorstores import FAISS
 from datetime import datetime
 
 # ==============================================================================
 # CHALLENGE 1A HEADING EXTRACTION LOGIC (Encapsulated)
 # ==============================================================================
-# Note: This is the same robust, dynamic engine from 1a, used here as a module.
 
 def _get_document_baseline(doc):
     if not doc or doc.is_closed or doc.page_count == 0: return 10
@@ -47,7 +46,6 @@ def _get_all_blocks(doc):
     return all_blocks
 
 def run_heading_extraction(doc):
-    """Extracts a structured outline from a PyMuPDF document object."""
     all_blocks = _get_all_blocks(doc)
     if not all_blocks:
         return []
@@ -88,7 +86,6 @@ def run_heading_extraction(doc):
 # ==============================================================================
 
 def process_documents(input_dir):
-    """Processes all PDFs in a directory to extract text and structure."""
     all_docs_data = []
     pdf_files = [f for f in os.listdir(input_dir) if f.lower().endswith('.pdf')]
 
@@ -111,7 +108,6 @@ def process_documents(input_dir):
     return all_docs_data
 
 def create_knowledge_base(docs_data):
-    """Creates structured text chunks and a FAISS vector store."""
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     all_chunks = []
 
@@ -123,7 +119,6 @@ def create_knowledge_base(docs_data):
                 current_heading = page_headings[0]['text']
 
             chunks = text_splitter.split_text(page_text)
-            # Use a Document-like structure for LangChain compatibility
             for chunk in chunks:
                 all_chunks.append({
                     "page_content": chunk,
@@ -137,9 +132,16 @@ def create_knowledge_base(docs_data):
     if not all_chunks:
         return None
 
-    embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+    # **FIX:** Point to the pre-downloaded model cache inside the container
+    model_kwargs = {'device': 'cpu'}
+    encode_kwargs = {'normalize_embeddings': False}
+    embeddings = SentenceTransformerEmbeddings(
+        model_name="all-MiniLM-L6-v2",
+        model_kwargs=model_kwargs,
+        encode_kwargs=encode_kwargs,
+        cache_folder="/app/model_cache" # This tells the script where to find the model
+    )
     
-    # Manually create documents in the format FAISS expects
     documents = [doc['page_content'] for doc in all_chunks]
     metadatas = [doc['metadata'] for doc in all_chunks]
     
@@ -147,7 +149,6 @@ def create_knowledge_base(docs_data):
     return vector_store
 
 def find_relevant_sections(vector_store, query, top_k=10):
-    """Searches the vector store for the most relevant sections."""
     if not vector_store:
         return []
     results_with_scores = vector_store.similarity_search_with_score(query, k=top_k)
@@ -169,7 +170,6 @@ def find_relevant_sections(vector_store, query, top_k=10):
     return ranked_results
 
 def main():
-    """Main execution function for the Docker container."""
     input_dir = '/app/input'
     output_dir = '/app/output'
     os.makedirs(output_dir, exist_ok=True)
@@ -193,13 +193,12 @@ def main():
     print(f"Searching for sections relevant to the job: '{job_to_be_done[:50]}...'")
     relevant_sections = find_relevant_sections(vector_store, job_to_be_done)
 
-    # --- Format Final Output to match the required schema ---
     output_data = {
         "metadata": {
             "input_documents": pdf_files,
             "persona": persona,
             "job_to_be_done": job_to_be_done,
-            "processing_timestamp": datetime.utcnow().isoformat() # Correct timestamp format
+            "processing_timestamp": datetime.utcnow().isoformat()
         },
         "extracted_sections": [
             {
@@ -209,7 +208,7 @@ def main():
                 "page_number": sec["page_number"]
             } for sec in relevant_sections
         ],
-        "subsection_analysis": [ # Corrected key name
+        "subsection_analysis": [
              {
                 "document": sec["document"],
                 "refined_text": sec["refined_text"],
