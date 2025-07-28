@@ -108,7 +108,7 @@ def process_documents(input_dir):
     return all_docs_data
 
 def create_knowledge_base(docs_data):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     all_chunks = []
 
     for data in docs_data:
