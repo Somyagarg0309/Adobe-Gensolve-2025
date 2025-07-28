@@ -163,7 +163,7 @@ For each processed PDF, a corresponding JSON file will be generated in the `outp
 
 -----
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 .
